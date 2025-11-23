@@ -140,18 +140,32 @@ def submit(request, course_id):
 
 # Exam result view — paste here
 def show_exam_result(request, course_id, submission_id):
-    context = {}
     course = get_object_or_404(Course, pk=course_id)
-    submission = Submission.objects.get(id=submission_id)
-    choices = submission.choices.all()
+    submission = get_object_or_404(Submission, pk=submission_id)
+    selected_choices = submission.choices.all()
+
     total_score = 0
-    questions = course.question_set.all()
-    for question in questions:
-        correct_choices = question.choice_set.filter(is_correct=True)
-        selected_choices = choices.filter(question=question)
-        if set(correct_choices) == set(selected_choices):
+    questions_results = []
+
+    for question in course.question_set.all():
+        correct_choices = list(question.choice_set.filter(is_correct=True))
+        user_choices = list(selected_choices.filter(question=question))
+        is_correct = set(correct_choices) == set(user_choices)
+
+        if is_correct:
             total_score += question.grade
-    context['course'] = course
-    context['grade'] = total_score
-    context['choices'] = choices
+
+        questions_results.append({
+            'question': question,
+            'user_choices': user_choices,
+            'is_correct': is_correct
+        })
+
+    context = {
+        'course': course,
+        'grade': total_score,
+        'questions_results': questions_results,
+        'user': request.user
+    }
+
     return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
